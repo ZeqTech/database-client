@@ -44,11 +44,11 @@ export class GridPanel {
         this.pending = undefined;
       } else if (m.type === "export") {
         const uri = await vscode.window.showSaveDialog({
-          defaultUri: vscode.Uri.file("result.csv"),
-          filters: { CSV: ["csv"] },
+          defaultUri: vscode.Uri.file(`result.${m.ext}`),
+          filters: m.ext === "json" ? { JSON: ["json"] } : { CSV: ["csv"] },
         });
         if (uri) {
-          await vscode.workspace.fs.writeFile(uri, Buffer.from(m.csv, "utf8"));
+          await vscode.workspace.fs.writeFile(uri, Buffer.from(m.content, "utf8"));
           vscode.window.showInformationMessage(`Exported to ${uri.fsPath}`);
         }
       } else {
@@ -144,6 +144,7 @@ export function gridHtml(): string {
     <input id="filter" placeholder="Filter rows…">
     <button id="refresh" hidden>↻</button>
     <button id="export">Export CSV</button>
+    <button id="exportJson">Export JSON</button>
   </div>
   <div class="sqlbar" id="sqlbar" hidden>
     <div class="row">
@@ -243,7 +244,11 @@ export function gridHtml(): string {
   $('refresh').onclick = () => vscode.postMessage({ type: 'refresh' });
   $('export').onclick = () => {
     const lines = [columns.map(csvCell).join(',')].concat(shown.map((i) => rows[i].map(csvCell).join(',')));
-    vscode.postMessage({ type: 'export', csv: lines.join('\\r\\n') + '\\r\\n' });
+    vscode.postMessage({ type: 'export', ext: 'csv', content: lines.join('\\r\\n') + '\\r\\n' });
+  };
+  $('exportJson').onclick = () => {
+    const objs = shown.map((i) => Object.fromEntries(columns.map((c, j) => [c, rows[i][j]])));
+    vscode.postMessage({ type: 'export', ext: 'json', content: JSON.stringify(objs, null, 2) + '\\n' });
   };
 ${sqlEditorJs}
   vscode.postMessage({ type: 'ready' });
