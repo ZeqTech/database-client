@@ -2,6 +2,23 @@
 
 Generated from commit history by `scripts/changelog.js`.
 
+## [0.4.0] - 2026-10-12
+
+### Added
+- Screenshots and marketplace description to README and package.json (7f303d1)
+
+### Changed
+- Show query run state in the status bar instead of popping a results panel (713b42f)
+- Open new queries in a dedicated language so Ctrl+Enter runs on their connection (15b6075)
+- Scope New Query to the clicked connection or schema (f16ac5f)
+- Updated names (4d800b7)
+
+### Fixed
+- Vsix lookup after rename to zeqs-database-client (0c2db79)
+
+### Removed
+- Test directory (19dfe7c)
+
 ## [0.3.0] - 2026-10-12
 
 ### Added
