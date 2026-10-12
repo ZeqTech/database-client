@@ -18,6 +18,21 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "languages": [
+      {
+        "id": "zeqs-query",
+        "aliases": ["SQL (Zeq's Database Client)"],
+        "extensions": [".zsql"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "zeqs-query",
+        "scopeName": "source.zeqs-query",
+        "path": "./syntaxes/zeqs-query.tmLanguage.json"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
@@ -295,7 +310,7 @@
       "editor/title": [
         {
           "command": "dbclient.runQuery",
-          "when": "editorLangId == sql",
+          "when": "editorLangId =~ /^(sql|zeqs-query)$/",
           "group": "navigation@1"
         }
       ]
@@ -305,13 +320,13 @@
         "command": "dbclient.runQuery",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
-        "when": "editorTextFocus && editorLangId == sql"
+        "when": "editorTextFocus && editorLangId =~ /^(sql|zeqs-query)$/"
       },
       {
         "command": "dbclient.runAll",
         "key": "ctrl+shift+enter",
         "mac": "cmd+shift+enter",
-        "when": "editorTextFocus && editorLangId == sql"
+        "when": "editorTextFocus && editorLangId =~ /^(sql|zeqs-query)$/"
       }
     ],
     "configuration": {

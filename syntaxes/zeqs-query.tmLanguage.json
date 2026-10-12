@@ -1,0 +1,4 @@
+{
+  "scopeName": "source.zeqs-query",
+  "patterns": [{ "include": "source.sql" }]
+}

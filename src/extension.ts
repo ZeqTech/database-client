@@ -9,6 +9,8 @@ import { CONNECTION_COLORS, ConnColor, ConnectionConfig } from "./types";
 import { checkForUpdates, reinstall } from "./updater";
 import { statementAt } from "./util";
 
+/** "zeqs-query" is ours alone, so other SQL extensions' Ctrl+Enter bindings do not fire in editors we open. */
+const QUERY_LANGS = new Set(["sql", "zeqs-query"]);
 const cfg = () => vscode.workspace.getConfiguration("dbclient");
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -23,7 +25,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   status.command = "dbclient.selectConnection";
   const updateStatus = () => {
     const ed = vscode.window.activeTextEditor;
-    if (!ed || ed.document.languageId !== "sql") return status.hide();
+    if (!ed || !QUERY_LANGS.has(ed.document.languageId)) return status.hide();
     const id = bound.get(ed.document.uri.toString());
     const c = id ? store.get(id) : undefined;
     status.text = `$(database) ${c ? c.name : "No connection"}`;
@@ -54,7 +56,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
   };
 
   const openEditor = async (c: ConnectionConfig, content: string) => {
-    const doc = await vscode.workspace.openTextDocument({ language: "sql", content });
+    const doc = await vscode.workspace.openTextDocument({ language: "zeqs-query", content });
     bound.set(doc.uri.toString(), c.id);
     await vscode.window.showTextDocument(doc);
     updateStatus();
