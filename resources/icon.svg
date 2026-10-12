@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e40af"/>
+      <stop offset="1" stop-color="#0ea5b7"/>
+    </linearGradient>
+    <linearGradient id="cyl" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#dbe7ff"/>
+      <stop offset="0.5" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#bcd3fb"/>
+    </linearGradient>
+    <filter id="shadow" x="-25%" y="-25%" width="150%" height="160%">
+      <feDropShadow dx="0" dy="7" stdDeviation="7" flood-color="#081f5c" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+
+  <rect width="256" height="256" rx="56" fill="url(#bg)"/>
+
+  <!-- database cylinder -->
+  <g filter="url(#shadow)">
+    <path d="M62 82 V172 C62 183 90 192 120 192 S178 183 178 172 V82 Z" fill="url(#cyl)"/>
+    <ellipse cx="120" cy="82" rx="58" ry="20" fill="#ffffff"/>
+  </g>
+  <path d="M62 112 C62 123 90 132 120 132 S178 123 178 112" fill="none" stroke="#2f6df0" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+  <path d="M62 142 C62 153 90 162 120 162 S178 153 178 142" fill="none" stroke="#2f6df0" stroke-width="5" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- table badge -->
+  <g filter="url(#shadow)">
+    <rect x="136" y="150" width="88" height="68" rx="11" fill="#ffffff" stroke="#1b4ec2" stroke-width="5"/>
+    <path d="M136 161 a11 11 0 0 1 11-11 h66 a11 11 0 0 1 11 11 v9 h-88 z" fill="#f59e0b"/>
+  </g>
+  <g stroke="#b7c8ea" stroke-width="3" stroke-linecap="round">
+    <path d="M144 189 H216"/>
+    <path d="M144 205 H216"/>
+    <path d="M172 174 V212"/>
+  </g>
+</svg>
