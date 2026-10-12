@@ -1,10 +1,26 @@
 {
   "name": "zeqs-database-client",
   "displayName": "Zeq's Database Client",
-  "description": "Manage unlimited PostgreSQL, MySQL/MariaDB and SQLite connections, browse tables and run SQL queries.",
+  "description": "Manage PostgreSQL, MySQL/MariaDB and SQLite connections in VS Code: browse tables, run SQL with per-editor connections, generate SQL, view and export DDL, and draw ER diagrams.",
   "version": "0.3.0",
   "publisher": "local",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/zeqtech/database-client.git"
+  },
+  "keywords": [
+    "database",
+    "sql",
+    "postgresql",
+    "postgres",
+    "mysql",
+    "mariadb",
+    "sqlite",
+    "query",
+    "ddl",
+    "er diagram"
+  ],
   "icon": "resources/icon.png",
   "galleryBanner": {
     "color": "#1e40af",
@@ -21,8 +37,12 @@
     "languages": [
       {
         "id": "zeqs-query",
-        "aliases": ["SQL (Zeq's Database Client)"],
-        "extensions": [".zsql"],
+        "aliases": [
+          "SQL (Zeq's Database Client)"
+        ],
+        "extensions": [
+          ".zsql"
+        ],
         "configuration": "./language-configuration.json"
       }
     ],
