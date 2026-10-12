@@ -18,7 +18,7 @@ Versioning
 Build
   build              Bundle the extension into dist/
   typecheck          Run tsc --noEmit
-  package            Typecheck, bundle and create database-client-<version>.vsix
+  package            Typecheck, bundle and create zeqs-database-client-<version>.vsix
   release <major|minor|patch>
                      Bump the version, update CHANGELOG.md, package, then commit and tag vX.Y.Z
   install            Install the newest local .vsix into VS Code (code CLI)
@@ -40,7 +40,7 @@ latest_vsix() {
   node -e '
     const v = (f) => f.match(/database-client-(.+)\.vsix$/)[1].split(".").map(Number);
     const cmp = (a, b) => { for (let i = 0; i < 3; i++) { const d = (v(a)[i] || 0) - (v(b)[i] || 0); if (d) return d; } return 0; };
-    const f = require("fs").readdirSync(".").filter((n) => /^database-client-[\d.]+\.vsix$/.test(n)).sort(cmp);
+    const f = require("fs").readdirSync(".").filter((n) => /^(?:zeqs-)?database-client-[\d.]+\.vsix$/.test(n)).sort(cmp);
     if (f.length) console.log(f[f.length - 1]);
   '
 }
@@ -78,7 +78,7 @@ case "$cmd" in
     echo "Installed $vsix. Reload VS Code to use it."
     ;;
   changelog) node scripts/changelog.js "${@:2}" ;;
-  clean) rm -rf dist database-client-*.vsix; echo "Cleaned." ;;
+  clean) rm -rf dist *database-client-*.vsix; echo "Cleaned." ;;
   reinstall)
     sh make.sh clean
     sh make.sh package

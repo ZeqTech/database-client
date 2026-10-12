@@ -322,7 +322,7 @@
         "dbclient.update.source": {
           "type": "string",
           "default": "",
-          "markdownDescription": "Folder containing `database-client-<version>.vsix` files (newest is used), or a path to a single `.vsix`. Used by **Database: Check for Updates** and **Database: Reinstall Extension**."
+          "markdownDescription": "Folder containing `zeqs-database-client-<version>.vsix` files (newest is used), or a path to a single `.vsix`. Used by **Database: Check for Updates** and **Database: Reinstall Extension**."
         },
         "dbclient.update.checkOnStartup": {
           "type": "boolean",

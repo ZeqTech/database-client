@@ -20,7 +20,7 @@ async function locate(prompt: boolean): Promise<Found | undefined> {
       canSelectFolders: true,
       canSelectMany: false,
       openLabel: "Use as update source",
-      title: "Pick a folder containing database-client-*.vsix (or a .vsix file)",
+      title: "Pick a folder containing *database-client-*.vsix (or a .vsix file)",
       filters: { VSIX: ["vsix"] },
     });
     if (!picked?.[0]) return undefined;
@@ -34,14 +34,14 @@ async function locate(prompt: boolean): Promise<Found | undefined> {
   if (fs.statSync(source).isFile()) {
     const version = vsixVersion(path.basename(source));
     if (!version) {
-      if (prompt) vscode.window.showErrorMessage("File name must look like database-client-<version>.vsix");
+      if (prompt) vscode.window.showErrorMessage("File name must look like zeqs-database-client-<version>.vsix");
       return undefined;
     }
     return { file: source, version };
   }
   const best = newestVsix(fs.readdirSync(source));
   if (!best) {
-    if (prompt) vscode.window.showWarningMessage(`No database-client-*.vsix found in ${source}`);
+    if (prompt) vscode.window.showWarningMessage(`No *database-client-*.vsix found in ${source}`);
     return undefined;
   }
   return { file: path.join(source, best.name), version: best.version };

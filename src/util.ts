@@ -89,9 +89,9 @@ export function compareVersions(a: string, b: string): number {
   return 0;
 }
 
-const VSIX = /^database-client-(\d+(?:\.\d+)*)\.vsix$/i;
+const VSIX = /^(?:zeqs-)?database-client-(\d+(?:\.\d+)*)\.vsix$/i;
 
-/** Newest `database-client-<version>.vsix` among the given file names. */
+/** Newest `[zeqs-]database-client-<version>.vsix` among the given file names. */
 export function newestVsix(names: string[]): { name: string; version: string } | undefined {
   let best: { name: string; version: string } | undefined;
   for (const name of names) {
