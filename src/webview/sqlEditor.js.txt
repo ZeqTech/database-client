@@ -1,0 +1,64 @@
+// ---- SQL input with syntax highlighting (textarea over a highlighted <pre>) ----
+// Inlined into the grid webview script, so `$` and `vscode` come from the surrounding scope.
+const SQL_KEYWORDS = new Set(('add all alter and any as asc begin between by case cascade check column commit constraint create cross ' +
+  'database default delete desc distinct drop else end except exists explain false foreign from full group having if ilike in index ' +
+  'inner insert intersect into is join key left like limit natural not null offset on or order outer over partition primary references ' +
+  'rename replace returning right rollback select set table temp temporary then to true truncate union unique update using values view ' +
+  'when where with').split(' '));
+
+let editorInited = false;
+const sqlInput = $('sql');
+const sqlHl = $('hl');
+
+function escHtml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+function highlightSql(src) {
+  // 1 comment, 2 string, 3 quoted identifier, 4 number, 5 word (+6 following paren), 7 anything else
+  const re = /(--[^\n]*|\/\*[\s\S]*?(?:\*\/|$))|('(?:[^']|'')*'?)|("(?:[^"]|"")*"?|`[^`]*`?)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][\w$]*)(\s*\()?|([\s\S])/g;
+  let out = '', m;
+  while ((m = re.exec(src))) {
+    if (m[1]) out += '<span class="t-c">' + escHtml(m[1]) + '</span>';
+    else if (m[2]) out += '<span class="t-s">' + escHtml(m[2]) + '</span>';
+    else if (m[3]) out += '<span class="t-q">' + escHtml(m[3]) + '</span>';
+    else if (m[4]) out += '<span class="t-n">' + escHtml(m[4]) + '</span>';
+    else if (m[5]) {
+      const rest = m[6] || '';
+      const cls = SQL_KEYWORDS.has(m[5].toLowerCase()) ? 't-k' : rest ? 't-f' : '';
+      out += (cls ? '<span class="' + cls + '">' + escHtml(m[5]) + '</span>' : escHtml(m[5])) + escHtml(rest);
+    } else out += escHtml(m[7]);
+  }
+  return out;
+}
+
+function paintSql() {
+  sqlHl.innerHTML = highlightSql(sqlInput.value) + '\n';
+  sqlHl.scrollTop = sqlInput.scrollTop;
+  sqlHl.scrollLeft = sqlInput.scrollLeft;
+}
+
+function runSql() {
+  vscode.postMessage({ type: 'run', sql: sqlInput.value, start: sqlInput.selectionStart, end: sqlInput.selectionEnd });
+}
+
+sqlInput.addEventListener('input', paintSql);
+sqlInput.addEventListener('scroll', () => { sqlHl.scrollTop = sqlInput.scrollTop; sqlHl.scrollLeft = sqlInput.scrollLeft; });
+sqlInput.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runSql(); }
+  else if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault();
+    sqlInput.setRangeText('  ', sqlInput.selectionStart, sqlInput.selectionEnd, 'end');
+    paintSql();
+  }
+});
+$('run').onclick = runSql;
+$('reset').onclick = () => vscode.postMessage({ type: 'reset' });
+
+/** Called for every data message: shows/hides the SQL bar and seeds its text once. */
+function onEditorMessage(m) {
+  if (m.editor !== undefined) $('sqlbar').hidden = !m.editor;
+  if (m.initSql !== undefined && !editorInited) {
+    editorInited = true;
+    sqlInput.value = m.initSql;
+    paintSql();
+  }
+}

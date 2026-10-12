@@ -1,0 +1,6 @@
+**
+!dist/extension.js
+!dist/sql-wasm.wasm
+!resources/**
+!package.json
+!README.md

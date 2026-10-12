@@ -1,0 +1,314 @@
+{
+  "name": "database-client",
+  "displayName": "Database Client",
+  "description": "Manage unlimited PostgreSQL, MySQL/MariaDB and SQLite connections, browse tables and run SQL queries.",
+  "version": "0.2.1",
+  "publisher": "local",
+  "license": "UNLICENSED",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dbclient",
+          "title": "Database Client",
+          "icon": "resources/database.svg"
+        }
+      ]
+    },
+    "views": {
+      "dbclient": [
+        {
+          "id": "dbclient.connections",
+          "name": "Connections"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "dbclient.connections",
+        "contents": "No database connections yet.\n[Add Connection](command:dbclient.addConnection)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "dbclient.addConnection",
+        "title": "Add Connection",
+        "category": "Database",
+        "icon": "$(add)"
+      },
+      {
+        "command": "dbclient.editConnection",
+        "title": "Edit Connection",
+        "category": "Database",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "dbclient.duplicateConnection",
+        "title": "Duplicate Connection",
+        "category": "Database"
+      },
+      {
+        "command": "dbclient.deleteConnection",
+        "title": "Delete Connection",
+        "category": "Database",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "dbclient.setGroup",
+        "title": "Move to Group…",
+        "category": "Database",
+        "icon": "$(folder)"
+      },
+      {
+        "command": "dbclient.setColor",
+        "title": "Set Color…",
+        "category": "Database",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "dbclient.renameGroup",
+        "title": "Rename Group",
+        "category": "Database"
+      },
+      {
+        "command": "dbclient.removeGroup",
+        "title": "Remove Group (Keep Connections)",
+        "category": "Database"
+      },
+      {
+        "command": "dbclient.disconnect",
+        "title": "Disconnect",
+        "category": "Database",
+        "icon": "$(debug-disconnect)"
+      },
+      {
+        "command": "dbclient.refresh",
+        "title": "Refresh",
+        "category": "Database",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dbclient.openTable",
+        "title": "Open Table Data",
+        "category": "Database",
+        "icon": "$(table)"
+      },
+      {
+        "command": "dbclient.newQuery",
+        "title": "New Query",
+        "category": "Database",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "dbclient.showDiagram",
+        "title": "Show ER Diagram",
+        "category": "Database",
+        "icon": "$(type-hierarchy)"
+      },
+      {
+        "command": "dbclient.runQuery",
+        "title": "Run Query (Selection or Statement at Cursor)",
+        "category": "Database",
+        "icon": "$(play)"
+      },
+      {
+        "command": "dbclient.runAll",
+        "title": "Run All Statements in File",
+        "category": "Database",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "dbclient.selectConnection",
+        "title": "Select Connection for This Editor",
+        "category": "Database"
+      },
+      {
+        "command": "dbclient.copyName",
+        "title": "Copy Name",
+        "category": "Database"
+      },
+      {
+        "command": "dbclient.checkForUpdates",
+        "title": "Check for Updates",
+        "category": "Database"
+      },
+      {
+        "command": "dbclient.reinstall",
+        "title": "Reinstall Extension",
+        "category": "Database"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "dbclient.addConnection",
+          "when": "view == dbclient.connections",
+          "group": "navigation@1"
+        },
+        {
+          "command": "dbclient.refresh",
+          "when": "view == dbclient.connections",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "dbclient.newQuery",
+          "when": "viewItem == connection",
+          "group": "inline@1"
+        },
+        {
+          "command": "dbclient.editConnection",
+          "when": "viewItem == connection",
+          "group": "inline@2"
+        },
+        {
+          "command": "dbclient.showDiagram",
+          "when": "viewItem == schema",
+          "group": "inline@1"
+        },
+        {
+          "command": "dbclient.showDiagram",
+          "when": "viewItem == connection",
+          "group": "query@3"
+        },
+        {
+          "command": "dbclient.showDiagram",
+          "when": "viewItem =~ /^(table|view)$/",
+          "group": "query@3"
+        },
+        {
+          "command": "dbclient.openTable",
+          "when": "viewItem =~ /^(table|view)$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "dbclient.newQuery",
+          "when": "viewItem =~ /^(table|view)$/",
+          "group": "query@1"
+        },
+        {
+          "command": "dbclient.copyName",
+          "when": "viewItem =~ /^(table|view|column|schema)$/",
+          "group": "query@2"
+        },
+        {
+          "command": "dbclient.refresh",
+          "when": "viewItem == connection",
+          "group": "conn@1"
+        },
+        {
+          "command": "dbclient.setGroup",
+          "when": "viewItem == connection",
+          "group": "org@1"
+        },
+        {
+          "command": "dbclient.setColor",
+          "when": "viewItem == connection",
+          "group": "org@2"
+        },
+        {
+          "command": "dbclient.renameGroup",
+          "when": "viewItem == group",
+          "group": "org@1"
+        },
+        {
+          "command": "dbclient.removeGroup",
+          "when": "viewItem == group",
+          "group": "org@2"
+        },
+        {
+          "command": "dbclient.disconnect",
+          "when": "viewItem == connection",
+          "group": "conn@2"
+        },
+        {
+          "command": "dbclient.duplicateConnection",
+          "when": "viewItem == connection",
+          "group": "conn@3"
+        },
+        {
+          "command": "dbclient.deleteConnection",
+          "when": "viewItem == connection",
+          "group": "conn@4"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "dbclient.runQuery",
+          "when": "editorLangId == sql",
+          "group": "navigation@1"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "dbclient.runQuery",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorTextFocus && editorLangId == sql"
+      },
+      {
+        "command": "dbclient.runAll",
+        "key": "ctrl+shift+enter",
+        "mac": "cmd+shift+enter",
+        "when": "editorTextFocus && editorLangId == sql"
+      }
+    ],
+    "configuration": {
+      "title": "Database Client",
+      "properties": {
+        "dbclient.pageSize": {
+          "type": "number",
+          "default": 100,
+          "minimum": 10,
+          "maximum": 5000,
+          "description": "Rows per page in the table data viewer."
+        },
+        "dbclient.update.source": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Folder containing `database-client-<version>.vsix` files (newest is used), or a path to a single `.vsix`. Used by **Database: Check for Updates** and **Database: Reinstall Extension**."
+        },
+        "dbclient.update.checkOnStartup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Check the update source when VS Code starts and offer to install a newer version."
+        },
+        "dbclient.maxRows": {
+          "type": "number",
+          "default": 10000,
+          "minimum": 100,
+          "description": "Maximum rows displayed for a query result."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run typecheck && node esbuild.js --production && vsce package --skip-license --allow-missing-repository"
+  },
+  "dependencies": {
+    "mysql2": "^3.11.0",
+    "pg": "^8.12.0",
+    "sql.js": "^1.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/pg": "^8.11.6",
+    "@types/sql.js": "^1.4.9",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.3"
+  }
+}

@@ -1,0 +1,336 @@
+import * as crypto from "crypto";
+import * as vscode from "vscode";
+import { openConnectionForm } from "./connectionForm";
+import { showDiagram } from "./diagram";
+import { ConnectionStore, Sessions } from "./connections";
+import { GridPanel } from "./grid";
+import { DbNode, DbTreeProvider } from "./tree";
+import { CONNECTION_COLORS, ConnColor, ConnectionConfig } from "./types";
+import { checkForUpdates, reinstall } from "./updater";
+import { statementAt } from "./util";
+
+const cfg = () => vscode.workspace.getConfiguration("dbclient");
+const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+export function activate(ctx: vscode.ExtensionContext): void {
+  const store = new ConnectionStore(ctx);
+  const sessions = new Sessions(store);
+  const tree = new DbTreeProvider(store, sessions);
+  /** SQL editor URI -> connection id. */
+  const bound = new Map<string, string>();
+
+  const status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
+  status.command = "dbclient.selectConnection";
+  const updateStatus = () => {
+    const ed = vscode.window.activeTextEditor;
+    if (!ed || ed.document.languageId !== "sql") return status.hide();
+    const id = bound.get(ed.document.uri.toString());
+    const c = id ? store.get(id) : undefined;
+    status.text = `$(database) ${c ? c.name : "No connection"}`;
+    status.tooltip = "Select database connection for this SQL editor";
+    status.show();
+  };
+
+  const pickConnection = async (): Promise<ConnectionConfig | undefined> => {
+    const all = store.list();
+    if (all.length === 0) {
+      const a = await vscode.window.showInformationMessage("No connections yet.", "Add Connection");
+      if (a) openConnectionForm(store);
+      return undefined;
+    }
+    const pick = await vscode.window.showQuickPick(
+      all.map((c) => ({ label: c.name, description: c.type, c })),
+      { placeHolder: "Select a connection" }
+    );
+    return pick?.c;
+  };
+
+  const connFrom = async (n?: DbNode) => (n && n.kind !== "group" ? n.cfg : pickConnection());
+
+  /** The connections a tree command applies to: the multi-selection if any, else the clicked node. */
+  const connectionsOf = (n?: DbNode, all?: DbNode[]): ConnectionConfig[] => {
+    const nodes = all?.length ? all : n ? [n] : [];
+    return nodes.flatMap((x) => (x.kind === "connection" ? [x.cfg] : []));
+  };
+
+  const openEditor = async (c: ConnectionConfig, content: string) => {
+    const doc = await vscode.workspace.openTextDocument({ language: "sql", content });
+    bound.set(doc.uri.toString(), c.id);
+    await vscode.window.showTextDocument(doc);
+    updateStatus();
+  };
+
+  const qualified = async (n: Extract<DbNode, { kind: "object" }>) => {
+    const d = await sessions.get(n.cfg.id);
+    return n.schema ? `${d.quote(n.schema)}.${d.quote(n.obj.name)}` : d.quote(n.obj.name);
+  };
+
+  const runSql = async (c: ConnectionConfig, sql: string) => {
+    const key = `results:${c.id}`;
+    const grid = GridPanel.show(key, `Results — ${c.name}`, () => {});
+    try {
+      const d = await sessions.get(c.id);
+      const r = await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Window, title: `Running query on ${c.name}…` },
+        () => d.query(sql, cfg().get<number>("maxRows", 10000))
+      );
+      const info = r.columns.length
+        ? `${r.rows.length.toLocaleString()} row${r.rows.length === 1 ? "" : "s"}${r.truncated ? " (truncated)" : ""} · ${r.elapsedMs} ms`
+        : `Statement OK · ${r.affected ?? 0} row(s) affected · ${r.elapsedMs} ms`;
+      grid.post({ type: "data", columns: r.columns, rows: r.rows, info });
+      if (/^\s*(create|drop|alter|rename)\b/i.test(sql)) tree.refresh();
+    } catch (e) {
+      grid.post({ type: "data", error: errText(e) });
+    }
+  };
+
+  const run = async (all: boolean) => {
+    const ed = vscode.window.activeTextEditor;
+    if (!ed) return;
+    const key = ed.document.uri.toString();
+    let c = bound.get(key) ? store.get(bound.get(key)!) : undefined;
+    if (!c) {
+      c = await pickConnection();
+      if (!c) return;
+      bound.set(key, c.id);
+      updateStatus();
+    }
+    let sql: string;
+    if (!ed.selection.isEmpty) sql = ed.document.getText(ed.selection);
+    else if (all) sql = ed.document.getText();
+    else sql = statementAt(ed.document.getText(), ed.document.offsetAt(ed.selection.active));
+    if (!sql.trim()) {
+      vscode.window.showWarningMessage("Nothing to run.");
+      return;
+    }
+    await runSql(c, sql);
+  };
+
+  const openTable = async (n: Extract<DbNode, { kind: "object" }>) => {
+    const size = cfg().get<number>("pageSize", 100);
+    const d = await sessions.get(n.cfg.id);
+    const qn = await qualified(n);
+    let page = 0;
+    let total: number | undefined;
+    let custom = false;
+    const label = n.schema ? `${n.schema}.${n.obj.name}` : n.obj.name;
+
+    const load = async () => {
+      try {
+        const r = await d.query(`SELECT * FROM ${qn} LIMIT ${size + 1} OFFSET ${page * size}`, size + 1);
+        const hasNext = r.rows.length > size;
+        const rows = r.rows.slice(0, size);
+        const from = rows.length ? page * size + 1 : 0;
+        const range = `Rows ${from.toLocaleString()}–${(page * size + rows.length).toLocaleString()}`;
+        grid.post({
+          type: "data",
+          columns: r.columns,
+          rows,
+          info: `${label} · ${range}${total !== undefined ? ` of ${total.toLocaleString()}` : ""} · ${r.elapsedMs} ms`,
+          paging: { page, hasPrev: page > 0, hasNext },
+          editor: true,
+        });
+      } catch (e) {
+        grid.post({ type: "data", error: errText(e) });
+      }
+    };
+    const countRows = () =>
+      d
+        .query(`SELECT COUNT(*) FROM ${qn}`, 1)
+        .then((r) => {
+          total = Number(r.rows[0]?.[0]);
+          return load();
+        })
+        .catch(() => {});
+
+    /** Runs the SQL typed in the table view's input (selection, else statement at cursor). */
+    const runCustom = async (m: { sql?: string; start?: number; end?: number }) => {
+      const text = m.sql ?? "";
+      const [a, b] = [Math.min(m.start ?? 0, m.end ?? 0), Math.max(m.start ?? 0, m.end ?? 0)];
+      const sql = a !== b ? text.slice(a, b) : statementAt(text, a);
+      if (!sql.trim()) {
+        grid.post({ type: "data", error: "Nothing to run.", editor: true });
+        return;
+      }
+      custom = true;
+      try {
+        const r = await d.query(sql, cfg().get<number>("maxRows", 10000));
+        const info = r.columns.length
+          ? `Query · ${r.rows.length.toLocaleString()} row${r.rows.length === 1 ? "" : "s"}${r.truncated ? " (truncated)" : ""} · ${r.elapsedMs} ms`
+          : `Statement OK · ${r.affected ?? 0} row(s) affected · ${r.elapsedMs} ms`;
+        grid.post({ type: "data", columns: r.columns, rows: r.rows, info, paging: null, editor: true });
+        if (/^\s*(create|drop|alter|rename)\b/i.test(sql)) tree.refresh();
+      } catch (e) {
+        grid.post({ type: "data", error: errText(e), editor: true });
+      }
+    };
+
+    const grid = GridPanel.show(
+      `table:${n.cfg.id}:${label}`,
+      label,
+      (m) => {
+        if (m.type === "page" && !custom) {
+          page = Math.max(0, page + (m.dir ?? 0));
+          load();
+        } else if (m.type === "refresh" || m.type === "reset") {
+          custom = false;
+          load().then(countRows);
+        } else if (m.type === "run") {
+          runCustom(m);
+        }
+      },
+      vscode.ViewColumn.Active
+    );
+    grid.post({ type: "data", editor: true, initSql: `SELECT * FROM ${qn} LIMIT 100;`, info: "Loading…" });
+    await load();
+    countRows();
+  };
+
+  ctx.subscriptions.push(
+    status,
+    vscode.window.createTreeView("dbclient.connections", {
+      treeDataProvider: tree,
+      dragAndDropController: tree,
+      canSelectMany: true,
+      showCollapseAll: true,
+    }),
+    vscode.window.onDidChangeActiveTextEditor(updateStatus),
+    vscode.workspace.onDidCloseTextDocument((d) => bound.delete(d.uri.toString())),
+    { dispose: () => void sessions.disposeAll() },
+
+    vscode.commands.registerCommand("dbclient.setGroup", async (n?: DbNode, all?: DbNode[]) => {
+      const targets = connectionsOf(n, all);
+      if (!targets.length) return;
+      const groups = [...new Set(store.list().flatMap((c) => (c.group ? [c.group] : [])))].sort();
+      const NEW = "$(add) New group…";
+      const NONE = "$(close) No group";
+      const pick = await vscode.window.showQuickPick([NEW, ...groups, NONE], { placeHolder: "Move to group" });
+      if (!pick) return;
+      let group: string | undefined;
+      if (pick === NEW) {
+        const name = (await vscode.window.showInputBox({ prompt: "Group name" }))?.trim();
+        if (!name) return;
+        group = name;
+      } else if (pick !== NONE) group = pick;
+      await store.saveMany(targets.map((c) => ({ ...c, group })));
+    }),
+    vscode.commands.registerCommand("dbclient.setColor", async (n?: DbNode, all?: DbNode[]) => {
+      const targets = connectionsOf(n, all);
+      if (!targets.length) return;
+      const items = [
+        { label: "None", id: undefined as ConnColor | undefined, iconPath: new vscode.ThemeIcon("circle-slash") },
+        ...(Object.entries(CONNECTION_COLORS) as [ConnColor, (typeof CONNECTION_COLORS)[ConnColor]][]).map(([id, v]) => ({
+          label: v.label,
+          id,
+          iconPath: new vscode.ThemeIcon("circle-filled", new vscode.ThemeColor(v.themeColor)),
+        })),
+      ];
+      const pick = await vscode.window.showQuickPick(items, { placeHolder: "Connection color" });
+      if (pick) await store.saveMany(targets.map((c) => ({ ...c, color: pick.id })));
+    }),
+    vscode.commands.registerCommand("dbclient.renameGroup", async (n?: DbNode) => {
+      if (n?.kind !== "group") return;
+      const name = (await vscode.window.showInputBox({ prompt: "Rename group", value: n.name }))?.trim();
+      if (!name || name === n.name) return;
+      await store.saveMany(store.list().filter((c) => c.group === n.name).map((c) => ({ ...c, group: name })));
+    }),
+    vscode.commands.registerCommand("dbclient.removeGroup", async (n?: DbNode) => {
+      if (n?.kind !== "group") return;
+      const ok = await vscode.window.showWarningMessage(
+        `Remove group "${n.name}"? Its connections are kept and become ungrouped.`,
+        { modal: true },
+        "Remove Group"
+      );
+      if (ok) await store.saveMany(store.list().filter((c) => c.group === n.name).map((c) => ({ ...c, group: undefined })));
+    }),
+    vscode.commands.registerCommand("dbclient.addConnection", () => openConnectionForm(store)),
+    vscode.commands.registerCommand("dbclient.editConnection", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (c) openConnectionForm(store, c);
+    }),
+    vscode.commands.registerCommand("dbclient.duplicateConnection", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      const copy = { ...c, id: crypto.randomUUID(), name: `${c.name} (copy)` };
+      await store.save(copy, await store.getPassword(c.id));
+    }),
+    vscode.commands.registerCommand("dbclient.deleteConnection", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      const ok = await vscode.window.showWarningMessage(`Delete connection "${c.name}"?`, { modal: true }, "Delete");
+      if (ok) {
+        await sessions.disconnect(c.id);
+        await store.remove(c.id);
+      }
+    }),
+    vscode.commands.registerCommand("dbclient.disconnect", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      await sessions.disconnect(c.id);
+      tree.refresh();
+    }),
+    vscode.commands.registerCommand("dbclient.refresh", async (n?: DbNode) => {
+      if (n?.kind === "connection") await sessions.disconnect(n.cfg.id);
+      tree.refresh(n);
+    }),
+    vscode.commands.registerCommand("dbclient.openTable", async (n?: DbNode) => {
+      if (n?.kind !== "object") return;
+      try {
+        await openTable(n);
+      } catch (e) {
+        vscode.window.showErrorMessage(errText(e));
+      }
+    }),
+    vscode.commands.registerCommand("dbclient.newQuery", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      const sql = n?.kind === "object" ? `SELECT * FROM ${await qualified(n)} LIMIT 100;\n` : "";
+      await openEditor(c, sql);
+    }),
+    vscode.commands.registerCommand("dbclient.showDiagram", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      try {
+        const d = await sessions.get(c.id);
+        let schema: string | undefined;
+        let focus: string | undefined;
+        if (n?.kind === "schema") schema = n.schema;
+        else if (n?.kind === "object" || n?.kind === "column") {
+          schema = n.schema;
+          focus = n.kind === "object" ? n.obj.name : n.table;
+        } else if (d.hasSchemas) {
+          const schemas = await d.listSchemas();
+          schema = schemas.length === 1 ? schemas[0] : await vscode.window.showQuickPick(schemas, { placeHolder: "Select a schema" });
+          if (!schema) return;
+        }
+        const label = schema ? `${c.name} / ${schema}` : c.name;
+        await showDiagram(`${c.id}:${schema ?? ""}`, label, () => d.getDiagram(schema), focus);
+      } catch (e) {
+        vscode.window.showErrorMessage(errText(e));
+      }
+    }),
+    vscode.commands.registerCommand("dbclient.runQuery", () => run(false)),
+    vscode.commands.registerCommand("dbclient.runAll", () => run(true)),
+    vscode.commands.registerCommand("dbclient.selectConnection", async () => {
+      const ed = vscode.window.activeTextEditor;
+      if (!ed) return;
+      const c = await pickConnection();
+      if (c) {
+        bound.set(ed.document.uri.toString(), c.id);
+        updateStatus();
+      }
+    }),
+    vscode.commands.registerCommand("dbclient.checkForUpdates", () => checkForUpdates(ctx)),
+    vscode.commands.registerCommand("dbclient.reinstall", () => reinstall(ctx)),
+    vscode.commands.registerCommand("dbclient.copyName", async (n?: DbNode) => {
+      if (!n) return;
+      const name =
+        n.kind === "schema" ? n.schema : n.kind === "object" ? n.obj.name : n.kind === "column" ? n.col.name : undefined;
+      if (name) await vscode.env.clipboard.writeText(name);
+    })
+  );
+  updateStatus();
+  if (cfg().get<boolean>("update.checkOnStartup", false)) void checkForUpdates(ctx, true);
+}
+
+export function deactivate(): void {}
