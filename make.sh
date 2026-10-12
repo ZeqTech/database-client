@@ -20,8 +20,9 @@ Build
   typecheck          Run tsc --noEmit
   package            Typecheck, bundle and create database-client-<version>.vsix
   release <major|minor|patch>
-                     Bump the version, then package
+                     Bump the version, update CHANGELOG.md, package, then commit and tag vX.Y.Z
   install            Install the newest local .vsix into VS Code (code CLI)
+  changelog          Print the changelog section for commits since the last v* tag
   clean              Remove dist/ and all .vsix files
 EOF
 }
@@ -57,7 +58,14 @@ case "$cmd" in
   package) npm.cmd run package ;;
   release)
     case "${2:-}" in
-      major | minor | patch) bump "$2"; npm.cmd run package ;;
+      major | minor | patch)
+        bump "$2"
+        node scripts/changelog.js --write
+        npm.cmd run package
+        git add CHANGELOG.md package.json package-lock.json
+        git commit -m "Release v$(current)"
+        git tag "v$(current)"
+        ;;
       *) echo "release needs major, minor or patch" >&2; exit 1 ;;
     esac
     ;;
@@ -69,6 +77,7 @@ case "$cmd" in
     "$CODE" --install-extension "$vsix" --force
     echo "Installed $vsix. Reload VS Code to use it."
     ;;
+  changelog) node scripts/changelog.js "${@:2}" ;;
   clean) rm -rf dist database-client-*.vsix; echo "Cleaned." ;;
   reinstall)
     sh make.sh clean
