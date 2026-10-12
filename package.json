@@ -2,7 +2,7 @@
   "name": "zeqs-database-client",
   "displayName": "Zeq's Database Client",
   "description": "Manage unlimited PostgreSQL, MySQL/MariaDB and SQLite connections, browse tables and run SQL queries.",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "publisher": "local",
   "license": "UNLICENSED",
   "icon": "resources/icon.png",
