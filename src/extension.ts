@@ -336,6 +336,30 @@ export function activate(ctx: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage(errText(e));
       }
     }),
+    vscode.commands.registerCommand("dbclient.generateSql", async (n?: DbNode) => {
+      if (n?.kind !== "object") return;
+      const pick = await vscode.window.showQuickPick(["SELECT", "INSERT", "UPDATE", "DELETE"], {
+        placeHolder: `Generate SQL for ${n.obj.name}`,
+      });
+      if (!pick) return;
+      try {
+        const d = await sessions.get(n.cfg.id);
+        const cols = await d.listColumns(n.obj.name, n.schema);
+        const names = cols.map((c) => d.quote(c.name));
+        const keys = cols.filter((c) => c.primaryKey).map((c) => d.quote(c.name));
+        const where = `WHERE ${(keys.length ? keys : names.slice(0, 1)).map((k) => `${k} = `).join(" AND ")}`;
+        const qn = await qualified(n);
+        const sql = {
+          SELECT: `SELECT ${names.join(", ")}\nFROM ${qn}\nLIMIT 100;\n`,
+          INSERT: `INSERT INTO ${qn} (${names.join(", ")})\nVALUES (${names.map(() => "").join(", ")});\n`,
+          UPDATE: `UPDATE ${qn}\nSET ${names.map((c) => `${c} = `).join(",\n    ")}\n${where};\n`,
+          DELETE: `DELETE FROM ${qn}\n${where};\n`,
+        }[pick];
+        await openEditor(n.cfg, sql!);
+      } catch (e) {
+        vscode.window.showErrorMessage(errText(e));
+      }
+    }),
     vscode.commands.registerCommand("dbclient.copyDdl", async (n?: DbNode) => {
       const c = await connFrom(n);
       if (!c) return;

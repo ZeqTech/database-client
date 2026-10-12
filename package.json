@@ -1,6 +1,6 @@
 {
-  "name": "database-client",
-  "displayName": "Zeq'sDatabase Client",
+  "name": "zeqs-database-client",
+  "displayName": "Zeq's Database Client",
   "description": "Manage unlimited PostgreSQL, MySQL/MariaDB and SQLite connections, browse tables and run SQL queries.",
   "version": "0.2.1",
   "publisher": "local",
@@ -124,6 +124,11 @@
         "icon": "$(code)"
       },
       {
+        "command": "dbclient.generateSql",
+        "title": "Generate SQL…",
+        "category": "Database"
+      },
+      {
         "command": "dbclient.copyDdl",
         "title": "Copy DDL",
         "category": "Database"
@@ -205,6 +210,11 @@
           "command": "dbclient.showDiagram",
           "when": "viewItem =~ /^(table|view)$/",
           "group": "query@3"
+        },
+        {
+          "command": "dbclient.generateSql",
+          "when": "viewItem =~ /^(table|view)$/",
+          "group": "query@1.5"
         },
         {
           "command": "dbclient.viewDdl",
