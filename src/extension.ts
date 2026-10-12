@@ -336,6 +336,16 @@ export function activate(ctx: vscode.ExtensionContext): void {
         vscode.window.showErrorMessage(errText(e));
       }
     }),
+    vscode.commands.registerCommand("dbclient.copyDdl", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      try {
+        await vscode.env.clipboard.writeText((await loadDdl(c, n)).ddl);
+        vscode.window.setStatusBarMessage("DDL copied to clipboard", 3000);
+      } catch (e) {
+        vscode.window.showErrorMessage(errText(e));
+      }
+    }),
     vscode.commands.registerCommand("dbclient.exportDdl", async (n?: DbNode) => {
       const c = await connFrom(n);
       if (!c) return;

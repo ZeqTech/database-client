@@ -1,6 +1,6 @@
 {
   "name": "database-client",
-  "displayName": "Database Client",
+  "displayName": "Zeq'sDatabase Client",
   "description": "Manage unlimited PostgreSQL, MySQL/MariaDB and SQLite connections, browse tables and run SQL queries.",
   "version": "0.2.1",
   "publisher": "local",
@@ -124,6 +124,11 @@
         "icon": "$(code)"
       },
       {
+        "command": "dbclient.copyDdl",
+        "title": "Copy DDL",
+        "category": "Database"
+      },
+      {
         "command": "dbclient.exportDdl",
         "title": "Export DDL…",
         "category": "Database",
@@ -207,9 +212,14 @@
           "group": "ddl@1"
         },
         {
-          "command": "dbclient.exportDdl",
+          "command": "dbclient.copyDdl",
           "when": "viewItem =~ /^(connection|schema|table|view)$/",
           "group": "ddl@2"
+        },
+        {
+          "command": "dbclient.exportDdl",
+          "when": "viewItem =~ /^(connection|schema|table|view)$/",
+          "group": "ddl@3"
         },
         {
           "command": "dbclient.openTable",
