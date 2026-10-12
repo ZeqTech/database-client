@@ -84,6 +84,23 @@ export class MySqlDriver implements Driver {
     };
   }
 
+  async getDdl(schema?: string, table?: string): Promise<string> {
+    const objs = (await this.listObjects(schema)).filter((o) => !table || o.name === table);
+    // Tables first so views can reference them.
+    objs.sort((a, b) => Number(a.kind === "view") - Number(b.kind === "view"));
+    const parts: string[] = [];
+    if (!table && schema) {
+      parts.push(`CREATE DATABASE IF NOT EXISTS ${this.quote(schema)};\nUSE ${this.quote(schema)};`);
+    }
+    for (const o of objs) {
+      const qn = (schema ? `${this.quote(schema)}.` : "") + this.quote(o.name);
+      const [rows] = await this.pool.query<any[]>(`SHOW CREATE ${o.kind === "view" ? "VIEW" : "TABLE"} ${qn}`);
+      const sql = rows[0]?.["Create Table"] ?? rows[0]?.["Create View"];
+      if (sql) parts.push(`${sql};`);
+    }
+    return parts.join("\n\n");
+  }
+
   async query(sql: string, maxRows: number): Promise<QueryResult> {
     const t = Date.now();
     const [res, fields] = (await this.pool.query({ sql, rowsAsArray: true })) as [any, any];

@@ -118,6 +118,18 @@
         "icon": "$(type-hierarchy)"
       },
       {
+        "command": "dbclient.viewDdl",
+        "title": "View DDL",
+        "category": "Database",
+        "icon": "$(code)"
+      },
+      {
+        "command": "dbclient.exportDdl",
+        "title": "Export DDL…",
+        "category": "Database",
+        "icon": "$(export)"
+      },
+      {
         "command": "dbclient.runQuery",
         "title": "Run Query (Selection or Statement at Cursor)",
         "category": "Database",
@@ -188,6 +200,16 @@
           "command": "dbclient.showDiagram",
           "when": "viewItem =~ /^(table|view)$/",
           "group": "query@3"
+        },
+        {
+          "command": "dbclient.viewDdl",
+          "when": "viewItem =~ /^(connection|schema|table|view)$/",
+          "group": "ddl@1"
+        },
+        {
+          "command": "dbclient.exportDdl",
+          "when": "viewItem =~ /^(connection|schema|table|view)$/",
+          "group": "ddl@2"
         },
         {
           "command": "dbclient.openTable",

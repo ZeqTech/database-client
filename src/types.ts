@@ -80,6 +80,8 @@ export interface Driver {
   listColumns(table: string, schema?: string): Promise<ColumnInfo[]>;
   /** All tables/views of a schema with columns, plus foreign keys between them. */
   getDiagram(schema?: string): Promise<Diagram>;
+  /** CREATE statements for one table/view, or for everything in a schema (the whole database for SQLite). */
+  getDdl(schema?: string, table?: string): Promise<string>;
   query(sql: string, maxRows: number): Promise<QueryResult>;
   close(): Promise<void>;
 }

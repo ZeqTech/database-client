@@ -65,6 +65,23 @@ export function activate(ctx: vscode.ExtensionContext): void {
     return n.schema ? `${d.quote(n.schema)}.${d.quote(n.obj.name)}` : d.quote(n.obj.name);
   };
 
+  /** DDL for the node's scope: one table/view, one schema, or the whole connection. */
+  const loadDdl = (c: ConnectionConfig, n?: DbNode) =>
+    vscode.window.withProgress({ location: vscode.ProgressLocation.Window, title: "Loading DDL…" }, async () => {
+      const d = await sessions.get(c.id);
+      let schema: string | undefined;
+      let table: string | undefined;
+      if (n?.kind === "schema") schema = n.schema;
+      else if (n?.kind === "object") [schema, table] = [n.schema, n.obj.name];
+      else if (n?.kind === "column") [schema, table] = [n.schema, n.table];
+      const label = [c.name, schema, table].filter(Boolean).join("_");
+      const header = `-- DDL for ${[c.name, schema, table].filter(Boolean).join(" / ")} (${c.type})\n-- Generated ${new Date().toISOString()}\n\n`;
+      if (table || !d.hasSchemas || schema) return { label, ddl: header + (await d.getDdl(schema, table)) + "\n" };
+      const parts: string[] = [];
+      for (const s of await d.listSchemas()) parts.push(`-- Schema: ${s}\n${await d.getDdl(s)}`);
+      return { label, ddl: header + parts.join("\n\n") + "\n" };
+    });
+
   const runSql = async (c: ConnectionConfig, sql: string) => {
     const key = `results:${c.id}`;
     const grid = GridPanel.show(key, `Results — ${c.name}`, () => {});
@@ -305,6 +322,32 @@ export function activate(ctx: vscode.ExtensionContext): void {
         }
         const label = schema ? `${c.name} / ${schema}` : c.name;
         await showDiagram(`${c.id}:${schema ?? ""}`, label, () => d.getDiagram(schema), focus);
+      } catch (e) {
+        vscode.window.showErrorMessage(errText(e));
+      }
+    }),
+    vscode.commands.registerCommand("dbclient.viewDdl", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      try {
+        const { ddl } = await loadDdl(c, n);
+        await openEditor(c, ddl);
+      } catch (e) {
+        vscode.window.showErrorMessage(errText(e));
+      }
+    }),
+    vscode.commands.registerCommand("dbclient.exportDdl", async (n?: DbNode) => {
+      const c = await connFrom(n);
+      if (!c) return;
+      try {
+        const { ddl, label } = await loadDdl(c, n);
+        const uri = await vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(`${label.replace(/[^\w.-]+/g, "_")}.sql`),
+          filters: { SQL: ["sql"] },
+        });
+        if (!uri) return;
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(ddl, "utf8"));
+        vscode.window.showInformationMessage(`DDL exported to ${uri.fsPath}`);
       } catch (e) {
         vscode.window.showErrorMessage(errText(e));
       }

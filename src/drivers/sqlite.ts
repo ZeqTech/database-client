@@ -104,6 +104,19 @@ export class SqliteDriver implements Driver {
     return { tables, relations: relations.filter((r) => pkOf.has(r.refTable)) };
   }
 
+  async getDdl(_schema?: string, table?: string): Promise<string> {
+    const r = await this.rows(
+      `select type, name, tbl_name, sql from sqlite_master
+       where sql is not null and name not like 'sqlite\\_%' escape '\\'
+       order by case type when 'table' then 0 when 'index' then 1 when 'view' then 2 else 3 end, name`
+    );
+    // For a single table keep its indexes and triggers; a view stands alone.
+    return r
+      .filter((x) => !table || x.name === table || (x.type !== "view" && x.tbl_name === table))
+      .map((x) => `${String(x.sql).trim()};`)
+      .join("\n\n");
+  }
+
   async query(sql: string, maxRows: number): Promise<QueryResult> {
     const db = await this.open();
     const t = Date.now();
