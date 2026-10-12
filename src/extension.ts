@@ -102,22 +102,49 @@ export function activate(ctx: vscode.ExtensionContext): void {
       return { label, ddl: header + parts.join("\n\n") + "\n" };
     });
 
+  /** Run indicator next to the connection item: spinner while running, then result summary or error. */
+  const runStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 49);
+  let runTimer: NodeJS.Timeout | undefined;
+  const setRun = (text: string, o: { tooltip?: string; error?: boolean; clearAfterMs?: number } = {}) => {
+    clearTimeout(runTimer);
+    runStatus.text = text;
+    runStatus.tooltip = o.tooltip;
+    runStatus.backgroundColor = o.error ? new vscode.ThemeColor("statusBarItem.errorBackground") : undefined;
+    runStatus.show();
+    if (o.clearAfterMs) runTimer = setTimeout(() => runStatus.hide(), o.clearAfterMs);
+  };
+  ctx.subscriptions.push(runStatus, { dispose: () => clearTimeout(runTimer) });
+
+  const rowsText = (n: number, truncated?: boolean) =>
+    `${n.toLocaleString()} row${n === 1 ? "" : "s"}${truncated ? " (truncated)" : ""}`;
+
   const runSql = async (c: ConnectionConfig, sql: string) => {
     const key = `results:${c.id}`;
-    const grid = GridPanel.show(key, `Results — ${c.name}`, () => {});
+    // Only result sets get a panel; an already-open one is kept up to date.
+    const panel = (create: boolean) =>
+      create || GridPanel.has(key) ? GridPanel.show(key, `Results — ${c.name}`, () => {}) : undefined;
+    setRun(`$(sync~spin) Running on ${c.name}…`, { tooltip: sql.trim().slice(0, 300) });
     try {
       const d = await sessions.get(c.id);
-      const r = await vscode.window.withProgress(
-        { location: vscode.ProgressLocation.Window, title: `Running query on ${c.name}…` },
-        () => d.query(sql, cfg().get<number>("maxRows", 10000))
-      );
-      const info = r.columns.length
-        ? `${r.rows.length.toLocaleString()} row${r.rows.length === 1 ? "" : "s"}${r.truncated ? " (truncated)" : ""} · ${r.elapsedMs} ms`
-        : `Statement OK · ${r.affected ?? 0} row(s) affected · ${r.elapsedMs} ms`;
-      grid.post({ type: "data", columns: r.columns, rows: r.rows, info });
+      const r = await d.query(sql, cfg().get<number>("maxRows", 10000));
+      const hasRows = r.columns.length > 0;
+      const summary = hasRows ? rowsText(r.rows.length, r.truncated) : `${r.affected ?? 0} row(s) affected`;
+      panel(hasRows)?.post({
+        type: "data",
+        columns: r.columns,
+        rows: r.rows,
+        info: hasRows ? `${summary} · ${r.elapsedMs} ms` : `Statement OK · ${summary} · ${r.elapsedMs} ms`,
+      });
+      setRun(`$(check) ${c.name}: ${summary} · ${r.elapsedMs} ms`, {
+        tooltip: `Query succeeded on ${c.name}`,
+        clearAfterMs: 10000,
+      });
       if (/^\s*(create|drop|alter|rename)\b/i.test(sql)) tree.refresh();
     } catch (e) {
-      grid.post({ type: "data", error: errText(e) });
+      const msg = errText(e);
+      panel(false)?.post({ type: "data", error: msg });
+      setRun(`$(error) ${c.name}: query failed`, { tooltip: msg, error: true });
+      vscode.window.showErrorMessage(`${c.name}: ${msg}`);
     }
   };
 

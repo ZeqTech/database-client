@@ -58,6 +58,10 @@ export class GridPanel {
     panel.webview.html = gridHtml();
   }
 
+  static has(key: string): boolean {
+    return GridPanel.open.has(key);
+  }
+
   static show(
     key: string,
     title: string,
