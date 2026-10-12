@@ -49,11 +49,11 @@ async function locate(prompt: boolean): Promise<Found | undefined> {
 
 async function install(file: string, version: string, verb: string): Promise<void> {
   await vscode.window.withProgress(
-    { location: vscode.ProgressLocation.Notification, title: `${verb} Database Client ${version}…` },
+    { location: vscode.ProgressLocation.Notification, title: `${verb} Zeq's Database Client ${version}…` },
     () => vscode.commands.executeCommand("workbench.extensions.command.installFromVSIX", vscode.Uri.file(file))
   );
   const pick = await vscode.window.showInformationMessage(
-    `Database Client ${version} installed. Reload the window to use it.`,
+    `Zeq's Database Client ${version} installed. Reload the window to use it.`,
     "Reload Window"
   );
   if (pick) await vscode.commands.executeCommand("workbench.action.reloadWindow");
@@ -74,14 +74,14 @@ export async function checkForUpdates(ctx: vscode.ExtensionContext, silent = fal
   if (!found) return;
   if (compareVersions(found.version, current) > 0) {
     const pick = await vscode.window.showInformationMessage(
-      `Database Client ${found.version} is available (installed: ${current}).`,
+      `Zeq's Database Client ${found.version} is available (installed: ${current}).`,
       "Update",
       "Later"
     );
     if (pick === "Update") await install(found.file, found.version, "Updating to");
   } else if (!silent) {
     const pick = await vscode.window.showInformationMessage(
-      `Database Client is up to date (${current}).`,
+      `Zeq's Database Client is up to date (${current}).`,
       "Reinstall Anyway"
     );
     if (pick) await install(found.file, found.version, "Reinstalling");
@@ -93,7 +93,7 @@ export async function reinstall(ctx: vscode.ExtensionContext): Promise<void> {
   const found = await locate(true);
   if (!found) return;
   const ok = await vscode.window.showWarningMessage(
-    `Reinstall Database Client ${found.version} from ${found.file}? Saved connections are kept.`,
+    `Reinstall Zeq's Database Client ${found.version} from ${found.file}? Saved connections are kept.`,
     { modal: true },
     "Reinstall"
   );

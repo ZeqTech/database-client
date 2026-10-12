@@ -22,7 +22,7 @@
       "activitybar": [
         {
           "id": "dbclient",
-          "title": "Database Client",
+          "title": "Zeq's Database Client",
           "icon": "resources/database.svg"
         }
       ]
@@ -310,7 +310,7 @@
       }
     ],
     "configuration": {
-      "title": "Database Client",
+      "title": "Zeq's Database Client",
       "properties": {
         "dbclient.pageSize": {
           "type": "number",

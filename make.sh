@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build/version helper for the Database Client extension.
+# Build/version helper for the Zeq's Database Client extension.
 # Usage: ./make.sh <command> [arg]
 set -euo pipefail
 cd "$(dirname "$0")"
