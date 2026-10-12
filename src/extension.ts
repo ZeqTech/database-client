@@ -60,6 +60,24 @@ export function activate(ctx: vscode.ExtensionContext): void {
     updateStatus();
   };
 
+  /** Comment naming the target plus a harmless statement that shows what the connection points at. */
+  const starterSql = (c: ConnectionConfig, n?: DbNode): string => {
+    const where =
+      c.type === "sqlite" ? c.file : `${c.host || "localhost"}${c.port ? `:${c.port}` : ""}${c.database ? ` / ${c.database}` : ""}`;
+    const label = { postgres: "PostgreSQL", mysql: "MySQL", sqlite: "SQLite" }[c.type];
+    const head = `-- ${c.name} (${label}: ${where})\n`;
+    if (n?.kind === "schema") {
+      const lit = `'${n.schema.replace(/'/g, "''")}'`;
+      return `${head}-- Schema: ${n.schema}\nSELECT table_name, table_type FROM information_schema.tables WHERE table_schema = ${lit} ORDER BY 1;\n`;
+    }
+    const probe = {
+      postgres: "SELECT current_database(), current_user, version();",
+      mysql: "SELECT DATABASE() AS db, CURRENT_USER() AS user, VERSION() AS version;",
+      sqlite: "SELECT name, type FROM sqlite_master ORDER BY name;",
+    }[c.type];
+    return `${head}${probe}\n`;
+  };
+
   const qualified = async (n: Extract<DbNode, { kind: "object" }>) => {
     const d = await sessions.get(n.cfg.id);
     return n.schema ? `${d.quote(n.schema)}.${d.quote(n.obj.name)}` : d.quote(n.obj.name);
@@ -301,7 +319,8 @@ export function activate(ctx: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("dbclient.newQuery", async (n?: DbNode) => {
       const c = await connFrom(n);
       if (!c) return;
-      const sql = n?.kind === "object" ? `SELECT * FROM ${await qualified(n)} LIMIT 100;\n` : "";
+      let sql = starterSql(c, n);
+      if (n?.kind === "object") sql = `SELECT * FROM ${await qualified(n)} LIMIT 100;\n`;
       await openEditor(c, sql);
     }),
     vscode.commands.registerCommand("dbclient.showDiagram", async (n?: DbNode) => {

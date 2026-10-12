@@ -197,6 +197,11 @@
           "group": "inline@2"
         },
         {
+          "command": "dbclient.newQuery",
+          "when": "viewItem == schema",
+          "group": "query@1"
+        },
+        {
           "command": "dbclient.showDiagram",
           "when": "viewItem == schema",
           "group": "inline@1"
