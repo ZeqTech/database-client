@@ -2,6 +2,14 @@
 
 Generated from commit history by `scripts/changelog.js`.
 
+## [0.5.0] - 2026-10-24
+
+### Added
+- License (79407b6)
+
+### Changed
+- Switched to pnpm (127e61b)
+
 ## [0.4.0] - 2026-10-12
 
 ### Added

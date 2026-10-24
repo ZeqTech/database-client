@@ -2,7 +2,7 @@
   "name": "zeqs-database-client",
   "displayName": "Zeq's Database Client",
   "description": "Manage PostgreSQL, MySQL/MariaDB and SQLite connections in VS Code: browse tables, run SQL with per-editor connections, generate SQL, view and export DDL, and draw ER diagrams.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "ZeqTech",
   "license": "MIT",
   "repository": {
@@ -13,8 +13,8 @@
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "typecheck": "tsc --noEmit",
-    "package": "npm run typecheck && node esbuild.js --production && vsce package --allow-missing-repository",
-    "publish": "npm run package && vsce publish --allow-missing-repository"
+    "package": "npm run typecheck && node esbuild.js --production && vsce package --no-dependencies --allow-missing-repository",
+    "publish": "npm run package && vsce publish --no-dependencies --allow-missing-repository"
   },
   "keywords": [
     "database",
