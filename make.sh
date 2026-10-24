@@ -31,7 +31,7 @@ current() { node -p "require('./package.json').version"; }
 
 bump() {
   # --no-git-tag-version: this is not necessarily a git repo, and we only want the file edit.
-  npm.cmd version "$1" --no-git-tag-version --allow-same-version >/dev/null
+  pnpm.cmd version "$1" --no-git-tag-version --allow-same-version >/dev/null
   echo "Version: $(current)"
 }
 
@@ -53,15 +53,15 @@ case "$cmd" in
     [[ "${2:-}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "set needs x.y.z" >&2; exit 1; }
     bump "$2"
     ;;
-  build) npm.cmd run build ;;
-  typecheck) npm.cmd run typecheck ;;
-  package) npm.cmd run package ;;
+  build) pnpm.cmd run build ;;
+  typecheck) pnpm.cmd run typecheck ;;
+  package) pnpm.cmd run package ;;
   release)
     case "${2:-}" in
       major | minor | patch)
         bump "$2"
         node scripts/changelog.js --write
-        npm.cmd run package
+        pnpm.cmd run package
         git add CHANGELOG.md package.json package-lock.json
         git commit -m "Release v$(current)"
         git tag "v$(current)"
@@ -83,6 +83,9 @@ case "$cmd" in
     sh make.sh clean
     sh make.sh package
     sh make.sh install
+    ;;
+  publish)
+    pnpm.cmd run publish
     ;;
   "" | help | -h | --help) usage ;;
   *) echo "Unknown command: $cmd" >&2; usage >&2; exit 1 ;;
