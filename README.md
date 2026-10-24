@@ -27,11 +27,4 @@ SQLite uses sql.js (wasm): the file is loaded in memory and rewritten after any 
 | `dbclient.maxRows` | `10000` | Maximum rows displayed for a query result. |
 | `dbclient.update.source` | | Folder or `.vsix` used by **Check for Updates** and **Reinstall Extension**. |
 | `dbclient.update.checkOnStartup` | `false` | Check the update source when VS Code starts. |
-
-## Develop
-
-```bash
-npm install
-npm run build      # then F5 ("Run Extension")
-npm run package    # produces a .vsix
-```
+``

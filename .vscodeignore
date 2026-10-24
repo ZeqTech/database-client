@@ -4,5 +4,6 @@
 !resources/**
 !package.json
 !README.md
+!LICENSE
 !language-configuration.json
 !syntaxes/**
