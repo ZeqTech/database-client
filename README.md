@@ -2,7 +2,7 @@
 
 Manage PostgreSQL, MySQL/MariaDB and SQLite connections, browse tables and run SQL without leaving VS Code.
 
-[Screenshots](https://github.com/ZeqTech/database-client/blob/main/media)
+![The editor showing its own README, with the toolbar across the top](media/overview.png)
 
 ## Features
 
