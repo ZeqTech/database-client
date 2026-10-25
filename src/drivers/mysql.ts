@@ -1,5 +1,6 @@
 import * as mysql from "mysql2/promise";
 import { ColumnInfo, ConnectionConfig, DbObject, Diagram, Driver, QueryResult } from "../types";
+import { buildSslOptions } from "../ssl";
 import { cell, groupRelations } from "../util";
 
 const SYSTEM_DBS = new Set(["information_schema", "mysql", "performance_schema", "sys"]);
@@ -8,17 +9,18 @@ export class MySqlDriver implements Driver {
   readonly hasSchemas = true;
   private pool: mysql.Pool;
 
-  constructor(cfg: ConnectionConfig, password: string) {
+  constructor(cfg: ConnectionConfig, password: string, sslKeyPassphrase?: string, connectTimeoutMs = 10000) {
     this.pool = mysql.createPool({
       host: cfg.host || "localhost",
       port: cfg.port ?? 3306,
       user: cfg.user || undefined,
       password: password || undefined,
       database: cfg.database || undefined,
-      ssl: cfg.ssl ? { rejectUnauthorized: false } : undefined,
+      ssl: buildSslOptions(cfg, sslKeyPassphrase) as mysql.PoolOptions["ssl"],
       multipleStatements: true,
       connectionLimit: 3,
-      connectTimeout: 10000,
+      connectTimeout: connectTimeoutMs,
+      enableKeepAlive: true,
       supportBigNumbers: true,
       bigNumberStrings: true,
     });

@@ -1,21 +1,23 @@
 import { Pool } from "pg";
 import { ColumnInfo, ConnectionConfig, DbObject, Diagram, Driver, QueryResult } from "../types";
+import { buildSslOptions } from "../ssl";
 import { cell, groupRelations } from "../util";
 
 export class PostgresDriver implements Driver {
   readonly hasSchemas = true;
   private pool: Pool;
 
-  constructor(cfg: ConnectionConfig, password: string) {
+  constructor(cfg: ConnectionConfig, password: string, sslKeyPassphrase?: string, connectTimeoutMs = 10000) {
     this.pool = new Pool({
       host: cfg.host || "localhost",
       port: cfg.port ?? 5432,
       user: cfg.user || undefined,
       password: password || undefined,
       database: cfg.database || undefined,
-      ssl: cfg.ssl ? { rejectUnauthorized: false } : undefined,
+      ssl: buildSslOptions(cfg, sslKeyPassphrase),
       max: 3,
-      connectionTimeoutMillis: 10000,
+      connectionTimeoutMillis: connectTimeoutMs,
+      keepAlive: true,
     });
     this.pool.on("error", () => {});
   }

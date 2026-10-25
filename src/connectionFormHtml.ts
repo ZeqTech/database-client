@@ -1,4 +1,5 @@
 import * as crypto from "crypto";
+import { normalizeSsl, SSL_MODES } from "./ssl";
 import { CONNECTION_COLORS, ConnectionConfig, DbType } from "./types";
 
 const esc = (s: unknown) => String(s ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -13,6 +14,12 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
         <span class="ctitle">${title}</span>
         <span class="csub">${sub}</span>
       </label>`;
+  const ssl = normalizeSsl(c?.ssl);
+  const sslFile = (id: string, label: string, value: string | undefined, hint: string) => `
+      <label class="field"><span>${label} <i>(optional)</i></span>
+        <div class="file"><input type="text" id="${id}" value="${esc(value)}" placeholder="C:\\path\\to\\file.pem"><button type="button" class="secondary" data-browse="${id}">Browse…</button></div>
+        ${hint ? `<div class="hint">${hint}</div>` : ""}
+      </label>`;
   return /* html */ `<!doctype html>
 <html><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-${nonce}';">
@@ -25,14 +32,14 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
   h3 { font-size:11px; letter-spacing:.08em; text-transform:uppercase; opacity:.6; margin:26px 0 10px; font-weight:600; }
 
   .cards { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
-  .card { position:relative; display:flex; flex-direction:column; align-items:center; gap:2px; padding:16px 8px 12px; cursor:pointer;
-    border:1px solid var(--vscode-panel-border); border-radius:8px; background:var(--vscode-editorWidget-background, transparent); transition:border-color .12s, box-shadow .12s; }
+  .card { position:relative; display:grid; grid-template-columns:auto 1fr; column-gap:10px; align-items:center; padding:8px 12px; cursor:pointer;
+    border:1px solid var(--vscode-panel-border); border-radius:6px; background:var(--vscode-editorWidget-background, transparent); transition:border-color .12s, box-shadow .12s; }
   .card:hover { border-color:var(--vscode-focusBorder); }
   .card input { position:absolute; opacity:0; pointer-events:none; }
   .card.on { border-color:var(--vscode-focusBorder); box-shadow:0 0 0 1px var(--vscode-focusBorder); }
-  .badge { width:42px; height:42px; border-radius:10px; display:grid; place-items:center; color:#fff; font-weight:700; font-size:15px; margin-bottom:6px; }
+  .badge { grid-row:1 / span 2; width:28px; height:28px; border-radius:7px; display:grid; place-items:center; color:#fff; font-weight:700; font-size:12px; }
   .b-postgres { background:#336791; } .b-mysql { background:#00758f; } .b-sqlite { background:#0f80cc; }
-  .ctitle { font-weight:600; } .csub { font-size:11px; opacity:.6; }
+  .ctitle { font-weight:600; line-height:1.2; } .csub { font-size:11px; opacity:.6; line-height:1.2; }
 
   details { border:1px dashed var(--vscode-panel-border); border-radius:8px; padding:8px 12px; margin-top:16px; }
   summary { cursor:pointer; opacity:.85; }
@@ -48,6 +55,10 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
   input:focus { border-color:var(--vscode-focusBorder); }
   input.bad { border-color:var(--vscode-errorForeground); }
   .err { color:var(--vscode-errorForeground); font-size:11px; }
+  .hint { font-size:11px; opacity:.6; }
+  select { width:100%; padding:6px 9px; font:inherit; color:var(--vscode-dropdown-foreground); background:var(--vscode-dropdown-background);
+    border:1px solid var(--vscode-dropdown-border, var(--vscode-panel-border)); border-radius:4px; outline:none; }
+  select:focus { border-color:var(--vscode-focusBorder); }
   .pw { position:relative; } .pw input { padding-right:56px; }
   .pw button { position:absolute; right:4px; top:3px; padding:2px 8px; font-size:11px; }
 
@@ -131,7 +142,18 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
       </label>
     </div>
     <label class="field"><span>Database <i>(optional)</i></span><input type="text" id="database" value="${esc(c?.database)}"></label>
-    <label class="switch"><input type="checkbox" id="ssl"${c?.ssl ? " checked" : ""}><span class="track"></span><span>Use SSL / TLS</span></label>
+    <label class="field"><span>SSL / TLS</span>
+      <select id="sslMode">${SSL_MODES.map((m) => `<option value="${m.id}"${ssl.mode === m.id ? " selected" : ""}>${esc(m.label)}</option>`).join("")}</select>
+      <div class="hint" id="sslHint"></div>
+      <div class="err" id="sslWarn"></div>
+    </label>
+    <div id="sslFiles" class="hidden">
+      ${sslFile("sslCa", "CA certificate", ssl.caFile, "Needed for private or cloud CAs (e.g. RDS, Azure). Leave blank to use the system trust store.")}
+      ${sslFile("sslCert", "Client certificate", ssl.certFile, "Only for servers that require a client certificate.")}
+      ${sslFile("sslKey", "Client key", ssl.keyFile, "")}
+      <label class="field"><span>Client key passphrase <i>(optional)</i></span>
+        <input type="password" id="sslPassphrase" placeholder="${ssl.keyFile ? "(unchanged)" : ""}" autocomplete="new-password"></label>
+    </div>
   </div>
 
   <div id="sqlite" class="hidden">
@@ -174,6 +196,33 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
     else $('name').placeholder = ($('database').value ? $('database').value + ' @ ' : '') + ($('host').value || 'localhost');
   }
 
+  const SSL_HINTS = ${JSON.stringify(Object.fromEntries(SSL_MODES.map((m) => [m.id, m.hint])))};
+  const isLocalHost = (h) => /^(localhost|127(\\.\\d+){3}|\\[?::1\\]?)$/i.test(h.trim()) || h.trim() === '';
+  // New connections follow the host (verified TLS for remote, off for local) until the user picks a mode.
+  let sslTouched = ${JSON.stringify(!!c)};
+  function autoSsl() {
+    if (sslTouched || dbType() === 'sqlite') return;
+    $('sslMode').value = isLocalHost($('host').value) ? 'disable' : 'verify-full';
+    syncSsl();
+  }
+  function syncSsl() {
+    const mode = $('sslMode').value;
+    $('sslHint').textContent = SSL_HINTS[mode] || '';
+    $('sslFiles').classList.toggle('hidden', mode === 'disable');
+    const weak = (mode === 'disable' || mode === 'require') && !isLocalHost($('host').value);
+    $('sslWarn').textContent = !weak ? '' : mode === 'disable'
+      ? 'Traffic to a remote host, including your password, is sent unencrypted.'
+      : 'The server certificate is not verified, so the connection can be intercepted. Prefer Verify full.';
+  }
+  // Mirrors sslModeFromParam in ssl.ts for URL import.
+  function sslModeFromParam(v) {
+    const s = String(v || '').toLowerCase();
+    if (SSL_HINTS[s]) return s;
+    if (s === 'verify_ca') return 'verify-ca';
+    if (s === 'verify_identity') return 'verify-full';
+    return /^(true|1|prefer|allow|preferred|required)$/.test(s) ? 'require' : 'disable';
+  }
+
   function setStatus(kind, text) {
     const el = $('status');
     el.className = 'status ' + kind;
@@ -199,7 +248,8 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
   function payload(kind) {
     return { type: kind, dbType: dbType(), name: $('name').value, host: $('host').value, port: $('port').value,
       user: $('user').value, password: $('password').value, database: $('database').value,
-      ssl: $('ssl').checked, file: $('file').value, group: $('group').value, color };
+      sslMode: $('sslMode').value, sslCa: $('sslCa').value, sslCert: $('sslCert').value, sslKey: $('sslKey').value,
+      sslPassphrase: $('sslPassphrase').value, file: $('file').value, group: $('group').value, color };
   }
   let color = ${JSON.stringify(c?.color ?? "")};
   document.querySelectorAll('.sw').forEach((b) => b.addEventListener('click', () => {
@@ -232,7 +282,9 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
       if (u.password) $('password').value = decodeURIComponent(u.password);
       $('database').value = decodeURIComponent(u.pathname.replace(/^\\//, ''));
       const q = u.searchParams;
-      $('ssl').checked = /^(require|verify-ca|verify-full|true|1)$/i.test(q.get('sslmode') || q.get('ssl') || '');
+      const sslParam = q.get('sslmode') || q.get('ssl') || q.get('ssl-mode');
+      sslTouched = !!sslParam;
+      if (sslParam) { $('sslMode').value = sslModeFromParam(sslParam); syncSsl(); } else autoSsl();
       $('url').value = '';
       updateNamePlaceholder();
       setStatus('ok', 'Imported — review the fields below');
@@ -245,17 +297,22 @@ export function connectionFormHtml(c?: ConnectionConfig, groups: string[] = []):
   $('url').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyUrl(); });
   $('showpw').onclick = () => { const p = $('password'); const show = p.type === 'password'; p.type = show ? 'text' : 'password'; $('showpw').textContent = show ? 'Hide' : 'Show'; };
   $('browse').onclick = () => vscode.postMessage({ type: 'browse' });
+  $('sslMode').addEventListener('change', () => { sslTouched = true; syncSsl(); });
+  $('host').addEventListener('input', () => { autoSsl(); syncSsl(); });
+  document.querySelectorAll('[data-browse]').forEach((b) => b.addEventListener('click', () => vscode.postMessage({ type: 'browseSsl', field: b.dataset.browse })));
   $('test').onclick = () => run('test');
   $('save').onclick = () => run('save');
   document.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.id !== 'url') run('save'); });
   window.addEventListener('message', (e) => {
     const m = e.data;
     if (m.type === 'file') { $('file').value = m.path; $('file').classList.remove('bad'); updateNamePlaceholder(); }
+    if (m.type === 'sslFile') $(m.field).value = m.path;
     if (m.type === 'result') {
       busy = false; $('test').disabled = $('save').disabled = false;
       setStatus(m.ok ? 'ok' : 'fail', m.text);
     }
   });
+  syncSsl();
   sync();
 </script></body></html>`;
 }

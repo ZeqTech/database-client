@@ -28,7 +28,7 @@
     "ddl",
     "er diagram"
   ],
-  "icon": "resources/icon.png",
+  "icon": "media/icon.png",
   "galleryBanner": {
     "color": "#1e40af",
     "theme": "dark"
@@ -65,7 +65,7 @@
         {
           "id": "dbclient",
           "title": "Zeq's Database Client",
-          "icon": "resources/database.svg"
+          "icon": "media/database.svg"
         }
       ]
     },
@@ -375,6 +375,13 @@
           "type": "boolean",
           "default": false,
           "description": "Check the update source when VS Code starts and offer to install a newer version."
+        },
+        "dbclient.connectTimeoutSeconds": {
+          "type": "number",
+          "default": 30,
+          "minimum": 1,
+          "maximum": 300,
+          "description": "Seconds to wait for a PostgreSQL or MySQL connection (including SSL handshake) before giving up."
         },
         "dbclient.maxRows": {
           "type": "number",

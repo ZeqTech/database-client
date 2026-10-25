@@ -14,8 +14,22 @@ const QUERY_LANGS = new Set(["sql", "zeqs-query"]);
 const cfg = () => vscode.workspace.getConfiguration("dbclient");
 const errText = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/** One-time notice: connections saved with the old SSL checkbox never verified the server certificate. */
+function warnLegacySsl(ctx: vscode.ExtensionContext, store: ConnectionStore): void {
+  const FLAG = "dbclient.legacySslNoticeShown";
+  if (ctx.globalState.get<boolean>(FLAG)) return;
+  const names = store.list().filter((c) => c.ssl === true).map((c) => c.name);
+  if (names.length === 0) return;
+  void ctx.globalState.update(FLAG, true);
+  void vscode.window.showWarningMessage(
+    `${names.length === 1 ? `Connection "${names[0]}" uses` : `${names.length} connections use`} SSL without verifying the server certificate. ` +
+      `Edit ${names.length === 1 ? "it" : "them"} and choose "Verify full" (or "Verify CA") to protect against impersonation.`
+  );
+}
+
 export function activate(ctx: vscode.ExtensionContext): void {
   const store = new ConnectionStore(ctx);
+  warnLegacySsl(ctx, store);
   const sessions = new Sessions(store);
   const tree = new DbTreeProvider(store, sessions);
   /** SQL editor URI -> connection id. */
@@ -316,7 +330,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
       const c = await connFrom(n);
       if (!c) return;
       const copy = { ...c, id: crypto.randomUUID(), name: `${c.name} (copy)` };
-      await store.save(copy, await store.getPassword(c.id));
+      await store.save(copy, await store.getPassword(c.id), await store.getSslPassphrase(c.id));
     }),
     vscode.commands.registerCommand("dbclient.deleteConnection", async (n?: DbNode) => {
       const c = await connFrom(n);
@@ -330,7 +344,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("dbclient.disconnect", async (n?: DbNode) => {
       const c = await connFrom(n);
       if (!c) return;
-      await sessions.disconnect(c.id);
+      await sessions.disconnect(c.id, { collapse: true });
       tree.refresh();
     }),
     vscode.commands.registerCommand("dbclient.refresh", async (n?: DbNode) => {

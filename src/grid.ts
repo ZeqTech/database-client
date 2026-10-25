@@ -123,14 +123,15 @@ export function gridHtml(): string {
   .sqlbar button.primary { color:var(--vscode-button-foreground); background:var(--vscode-button-background); }
   .sqlbar button.primary:hover { background:var(--vscode-button-hoverBackground); }
   .sqlbox { position:relative; height:96px; min-height:48px; max-height:60vh; resize:vertical; overflow:hidden;
-    border:1px solid var(--vscode-input-border, var(--vscode-panel-border)); background:var(--vscode-input-background); border-radius:3px; }
+    border:1px solid var(--vscode-input-border, var(--vscode-panel-border)); background:var(--vscode-editor-background); border-radius:3px; }
   .sqlbox:focus-within { border-color:var(--vscode-focusBorder); }
   .sqlbox pre, .sqlbox textarea { position:absolute; inset:0; margin:0; padding:6px 8px; border:0; box-sizing:border-box;
     font-family:var(--vscode-editor-font-family, monospace); font-size:var(--vscode-editor-font-size, 13px); line-height:1.5; tab-size:2;
     white-space:pre; overflow:auto; background:transparent; letter-spacing:0; }
   .sqlbox pre { pointer-events:none; color:var(--vscode-editor-foreground, var(--vscode-foreground)); overflow:hidden; }
   .sqlbox textarea { color:transparent; -webkit-text-fill-color:transparent; caret-color:var(--vscode-editor-foreground, var(--vscode-foreground)); resize:none; outline:none; width:100%; height:100%; }
-  .sqlbox textarea::selection { background:var(--vscode-editor-selectionBackground); -webkit-text-fill-color:transparent; }
+  /* The textarea sits above the highlighted <pre>, so the selection must be translucent or it hides the text. */
+  .sqlbox textarea::selection { background:color-mix(in srgb, var(--vscode-editor-selectionBackground) 40%, transparent); -webkit-text-fill-color:transparent; }
   .t-k { color:#569cd6; font-weight:600; } .t-s { color:#ce9178; } .t-q { color:#9cdcfe; } .t-n { color:#b5cea8; }
   .t-c { color:#6a9955; font-style:italic; } .t-f { color:#dcdcaa; }
   .vscode-light .t-k { color:#0000ff; } .vscode-light .t-s { color:#a31515; } .vscode-light .t-q { color:#001080; }

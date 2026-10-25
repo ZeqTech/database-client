@@ -14,6 +14,17 @@ export const CONNECTION_COLORS: Record<ConnColor, { label: string; themeColor: s
   gray: { label: "Gray", themeColor: "disabledForeground", hex: "#8a8a8a" },
 };
 
+export type SslMode = "disable" | "require" | "verify-ca" | "verify-full";
+
+export interface SslConfig {
+  mode: SslMode;
+  /** PEM file with the CA certificate(s) that signed the server certificate. */
+  caFile?: string;
+  /** PEM client certificate and key for mutual TLS. */
+  certFile?: string;
+  keyFile?: string;
+}
+
 export interface ConnectionConfig {
   id: string;
   name: string;
@@ -22,7 +33,8 @@ export interface ConnectionConfig {
   port?: number;
   user?: string;
   database?: string;
-  ssl?: boolean;
+  /** A plain boolean is the pre-0.6 format and means `require` when true. */
+  ssl?: boolean | SslConfig;
   /** SQLite database file path. */
   file?: string;
   /** Folder the connection is listed under in the tree. */

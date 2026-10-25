@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { ConnectionStore, Sessions } from "./connections";
-import { CONNECTION_COLORS, ColumnInfo, ConnectionConfig, DbObject } from "./types";
+import { ConnectionStore, describeConnectError, Sessions } from "./connections";
+import { CONNECTION_COLORS, ColumnInfo, ConnectionConfig, DbObject, Driver } from "./types";
 
 export type DbNode =
   | { kind: "group"; name: string }
@@ -60,6 +60,8 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
       }
       case "connection": {
         const item = new vscode.TreeItem(n.cfg.name, vscode.TreeItemCollapsibleState.Collapsed);
+        // The epoch changes on Disconnect, which makes VS Code rebuild the node collapsed instead of re-expanding (and silently reconnecting).
+        item.id = `connection:${n.cfg.id}:${this.sessions.epoch(n.cfg.id)}`;
         const where = n.cfg.type === "sqlite" ? n.cfg.file : `${n.cfg.host || "localhost"}`;
         item.description = `${TYPE_LABEL[n.cfg.type]} · ${where}`;
         const connected = this.sessions.isConnected(n.cfg.id);
@@ -120,10 +122,12 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
         ...all.filter((c) => !c.group).map((cfg): DbNode => ({ kind: "connection", cfg })),
       ];
     }
+    let session: Promise<Driver> | undefined;
     try {
       switch (n.kind) {
         case "connection": {
-          const d = await this.sessions.get(n.cfg.id);
+          session = this.sessions.get(n.cfg.id);
+          const d = await session;
           if (d.hasSchemas) {
             const schemas = await d.listSchemas();
             this.sessions.markConnected(n.cfg.id);
@@ -149,9 +153,9 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
     } catch (e) {
       if (n.kind === "connection") {
         // Drop the cached driver so the next expand retries with fresh settings.
-        await this.sessions.disconnect(n.cfg.id);
+        await this.sessions.disconnect(n.cfg.id, { only: session });
       }
-      return [{ kind: "error", cfg: n.cfg, message: e instanceof Error ? e.message : String(e) }];
+      return [{ kind: "error", cfg: n.cfg, message: describeConnectError(n.cfg, e) }];
     }
   }
 }
