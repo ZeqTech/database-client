@@ -62,7 +62,7 @@ case "$cmd" in
         bump "$2"
         node scripts/changelog.js --write
         pnpm.cmd run package
-        git add CHANGELOG.md package.json package-lock.json
+        git add CHANGELOG.md package.json pnpm-lock.json
         git commit -m "Release v$(current)"
         git tag "v$(current)"
         ;;
