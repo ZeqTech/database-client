@@ -37,6 +37,7 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
   readonly dragMimeTypes = [DRAG_MIME];
   readonly dropMimeTypes = [DRAG_MIME];
 
+  private readonly connectionNodes = new Map<string, DbNode>();
   private readonly emitter = new vscode.EventEmitter<DbNode | undefined>();
   readonly onDidChangeTreeData = this.emitter.event;
 
@@ -44,9 +45,16 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
     store.onDidChange(() => this.refresh());
     // Re-render a node when it connects so its Close button appears (disconnects refresh via the command).
     sessions.onDidChangeConnected((id) => {
-      const cfg = store.get(id);
-      if (cfg && sessions.isConnected(id)) this.refresh({ kind: "connection", cfg });
+      // VS Code finds the element by object identity, so pass the node instance it was given.
+      const node = this.connectionNodes.get(id);
+      if (node && sessions.isConnected(id)) this.refresh(node);
     });
+  }
+
+  private connectionNode(cfg: ConnectionConfig): DbNode {
+    const node: DbNode = { kind: "connection", cfg };
+    this.connectionNodes.set(cfg.id, node);
+    return node;
   }
 
   refresh(node?: DbNode): void {
@@ -134,13 +142,13 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
   async getChildren(n?: DbNode): Promise<DbNode[]> {
     if (!n || n.kind === "group") {
       const all = this.store.list().sort(byName);
-      if (n) return all.filter((c) => c.group === n.name).map((cfg) => ({ kind: "connection", cfg }));
+      if (n) return all.filter((c) => c.group === n.name).map((cfg) => this.connectionNode(cfg));
       const groups = [...new Set(all.flatMap((c) => (c.group ? [c.group] : [])))].sort((a, b) =>
         a.localeCompare(b, undefined, { sensitivity: "base" })
       );
       return [
         ...groups.map((name): DbNode => ({ kind: "group", name })),
-        ...all.filter((c) => !c.group).map((cfg): DbNode => ({ kind: "connection", cfg })),
+        ...all.filter((c) => !c.group).map((cfg) => this.connectionNode(cfg)),
       ];
     }
     let session: Promise<Driver> | undefined;
