@@ -131,7 +131,7 @@
       },
       {
         "command": "dbclient.disconnect",
-        "title": "Disconnect",
+        "title": "Close Connection",
         "category": "Database",
         "icon": "$(debug-disconnect)"
       },
@@ -230,12 +230,12 @@
       "view/item/context": [
         {
           "command": "dbclient.newQuery",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "inline@1"
         },
         {
           "command": "dbclient.editConnection",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "inline@2"
         },
         {
@@ -250,7 +250,7 @@
         },
         {
           "command": "dbclient.showDiagram",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "query@3"
         },
         {
@@ -265,17 +265,17 @@
         },
         {
           "command": "dbclient.viewDdl",
-          "when": "viewItem =~ /^(connection|schema|table|view)$/",
+          "when": "viewItem =~ /^(connection|connection-open|schema|table|view)$/",
           "group": "ddl@1"
         },
         {
           "command": "dbclient.copyDdl",
-          "when": "viewItem =~ /^(connection|schema|table|view)$/",
+          "when": "viewItem =~ /^(connection|connection-open|schema|table|view)$/",
           "group": "ddl@2"
         },
         {
           "command": "dbclient.exportDdl",
-          "when": "viewItem =~ /^(connection|schema|table|view)$/",
+          "when": "viewItem =~ /^(connection|connection-open|schema|table|view)$/",
           "group": "ddl@3"
         },
         {
@@ -295,17 +295,17 @@
         },
         {
           "command": "dbclient.refresh",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "conn@1"
         },
         {
           "command": "dbclient.setGroup",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "org@1"
         },
         {
           "command": "dbclient.setColor",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "org@2"
         },
         {
@@ -320,17 +320,22 @@
         },
         {
           "command": "dbclient.disconnect",
-          "when": "viewItem == connection",
+          "when": "viewItem == connection-open",
+          "group": "inline@0"
+        },
+        {
+          "command": "dbclient.disconnect",
+          "when": "viewItem == connection-open",
           "group": "conn@2"
         },
         {
           "command": "dbclient.duplicateConnection",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "conn@3"
         },
         {
           "command": "dbclient.deleteConnection",
-          "when": "viewItem == connection",
+          "when": "viewItem =~ /^(connection|connection-open)$/",
           "group": "conn@4"
         }
       ],

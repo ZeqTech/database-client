@@ -78,6 +78,9 @@ export class Sessions {
   private readonly drivers = new Map<string, Promise<Driver>>();
   private readonly connected = new Set<string>();
   private readonly epochs = new Map<string, number>();
+  private readonly changed = new vscode.EventEmitter<string>();
+  /** Fires with the connection id whenever it becomes connected or disconnected. */
+  readonly onDidChangeConnected = this.changed.event;
 
   constructor(private readonly store: ConnectionStore) {}
 
@@ -96,7 +99,9 @@ export class Sessions {
   }
 
   markConnected(id: string): void {
+    if (this.connected.has(id)) return;
     this.connected.add(id);
+    this.changed.fire(id);
   }
 
   isConnected(id: string): boolean {
@@ -117,7 +122,7 @@ export class Sessions {
     const p = this.drivers.get(id);
     if (opts.only && p !== opts.only) return;
     this.drivers.delete(id);
-    this.connected.delete(id);
+    if (this.connected.delete(id)) this.changed.fire(id);
     if (opts.collapse) this.epochs.set(id, this.epoch(id) + 1);
     if (!p) return;
     const closed = p.then((d) => d.close()).catch(() => {});

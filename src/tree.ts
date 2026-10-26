@@ -15,6 +15,24 @@ const TYPE_LABEL = { postgres: "PostgreSQL", mysql: "MySQL", sqlite: "SQLite" } 
 const DRAG_MIME = "application/vnd.code.tree.dbclient.connections";
 const byName = (a: ConnectionConfig, b: ConnectionConfig) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" });
 
+const CONNECTION_SCHEME = "dbclient-connection";
+const connectionUri = (id: string) => vscode.Uri.from({ scheme: CONNECTION_SCHEME, path: `/${id}` });
+
+/** Green dot badge and green name on connections that currently hold an open session. */
+export class ConnectionDecorations implements vscode.FileDecorationProvider {
+  private readonly emitter = new vscode.EventEmitter<vscode.Uri[]>();
+  readonly onDidChangeFileDecorations = this.emitter.event;
+
+  constructor(private readonly sessions: Sessions) {
+    sessions.onDidChangeConnected((id) => this.emitter.fire([connectionUri(id)]));
+  }
+
+  provideFileDecoration(uri: vscode.Uri): vscode.FileDecoration | undefined {
+    if (uri.scheme !== CONNECTION_SCHEME || !this.sessions.isConnected(uri.path.slice(1))) return undefined;
+    return new vscode.FileDecoration("●", "Connected", new vscode.ThemeColor("charts.green"));
+  }
+}
+
 export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.TreeDragAndDropController<DbNode> {
   readonly dragMimeTypes = [DRAG_MIME];
   readonly dropMimeTypes = [DRAG_MIME];
@@ -24,6 +42,11 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
 
   constructor(private readonly store: ConnectionStore, private readonly sessions: Sessions) {
     store.onDidChange(() => this.refresh());
+    // Re-render a node when it connects so its Close button appears (disconnects refresh via the command).
+    sessions.onDidChangeConnected((id) => {
+      const cfg = store.get(id);
+      if (cfg && sessions.isConnected(id)) this.refresh({ kind: "connection", cfg });
+    });
   }
 
   refresh(node?: DbNode): void {
@@ -65,16 +88,14 @@ export class DbTreeProvider implements vscode.TreeDataProvider<DbNode>, vscode.T
         const where = n.cfg.type === "sqlite" ? n.cfg.file : `${n.cfg.host || "localhost"}`;
         item.description = `${TYPE_LABEL[n.cfg.type]} · ${where}`;
         const connected = this.sessions.isConnected(n.cfg.id);
-        // A chosen colour wins; otherwise connected connections are green.
-        const color = n.cfg.color
-          ? CONNECTION_COLORS[n.cfg.color].themeColor
-          : connected
-            ? "charts.green"
-            : undefined;
-        item.iconPath = new vscode.ThemeIcon("database", color ? new vscode.ThemeColor(color) : undefined);
-        if (connected) item.description = `● ${item.description}`;
-        item.contextValue = "connection";
-        item.tooltip = `${n.cfg.name}\n${TYPE_LABEL[n.cfg.type]} · ${where}`;
+        const color = n.cfg.color ? CONNECTION_COLORS[n.cfg.color].themeColor : undefined;
+        // Open: plug icon, green name and a dot badge (see ConnectionDecorations). Closed: dimmed database icon.
+        item.iconPath = connected
+          ? new vscode.ThemeIcon("plug", new vscode.ThemeColor(color ?? "charts.green"))
+          : new vscode.ThemeIcon("database", new vscode.ThemeColor(color ?? "disabledForeground"));
+        item.resourceUri = connectionUri(n.cfg.id);
+        item.contextValue = connected ? "connection-open" : "connection";
+        item.tooltip = `${n.cfg.name}\n${TYPE_LABEL[n.cfg.type]} · ${where}\n${connected ? "Connected" : "Not connected (expand to connect)"}`;
         return item;
       }
       case "schema": {

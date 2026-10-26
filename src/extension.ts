@@ -4,7 +4,7 @@ import { openConnectionForm } from "./connectionForm";
 import { showDiagram } from "./diagram";
 import { ConnectionStore, Sessions } from "./connections";
 import { GridPanel } from "./grid";
-import { DbNode, DbTreeProvider } from "./tree";
+import { ConnectionDecorations, DbNode, DbTreeProvider } from "./tree";
 import { CONNECTION_COLORS, ConnColor, ConnectionConfig } from "./types";
 import { checkForUpdates, reinstall } from "./updater";
 import { statementAt } from "./util";
@@ -266,6 +266,7 @@ export function activate(ctx: vscode.ExtensionContext): void {
 
   ctx.subscriptions.push(
     status,
+    vscode.window.registerFileDecorationProvider(new ConnectionDecorations(sessions)),
     vscode.window.createTreeView("dbclient.connections", {
       treeDataProvider: tree,
       dragAndDropController: tree,
